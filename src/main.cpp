@@ -3,8 +3,9 @@
 #include <string>
 #include <iomanip>
 #include <sodium.h>
+#include <unistd.h>
 
-#include "../inc/cryptoutils.hpp"
+#include "../inc/vault.hpp"
 
 // converts an unsigned char vector to a hex string
 std::string hex_string(const std::vector<unsigned char>& bytes){
@@ -20,29 +21,22 @@ void error_msg(std::string msg){
 }
 
 int main(int argc, char** argv){
-    // ensure sodium insitalizes properly
-    if (sodium_init() != 0){
-        error_msg("failed to initialize libsodium");
+    std::cout << "Path to encrypt: " << std::flush;
+    std::string input_path;
+    std::getline(std::cin, input_path);
+    std::string password = getpass("Password: ");
+    std::string confirm = getpass("Confirm: ");
+    if (password != confirm){
+        error_msg("password does not match confirmation");
         return 1;
     }
-    // test key generation
-    std::vector<unsigned char> salt, second_salt;
-    gen_salt(salt);
-    std::vector<unsigned char> key = gen_key("TestPassword123!", salt);
-    std::cout << "Salt: " << hex_string(salt) << "\nKey: " << hex_string(key) << std::endl;
-    // test encryption/decryption
-    unsigned char* tmp = (unsigned char*) "The british are coming!";
-    std::vector<unsigned char> plaintext(tmp, tmp + 24);
-    std::vector<unsigned char> ciphertext, decrypted;
+    std::string output_path;
+    std::cout << "Archive path: " << std::flush;
+    std::getline(std::cin, output_path);
     std::cout << "Encrypting..." << std::endl;
-    encrypt(plaintext, key, ciphertext);
-    std::cout << "Ciphertext: " << hex_string(ciphertext) << std::endl;
-     try{
-        decrypt(ciphertext, key, decrypted);
-        std::cout << decrypted.size() << std::endl;
-        std::cout << "Decrypted: " <<  &plaintext[0] << std::endl;
-    }
-    catch (std::runtime_error e){
-        error_msg(e.what());
-    }
+    Vault vault;
+    vault.seal(input_path, password, output_path);
+    std::cout << "Encrypted" << std::endl;
+    
+
 }
