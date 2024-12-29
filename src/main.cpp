@@ -40,6 +40,6 @@ int main(int argc, char** argv){
     vault.seal("../data/testdir_nested", "../data/encrypted/nested", "password");
     std::cout << "Complete!" << std::endl;
     std::cout << "Decrypting..." << std::endl;
-    vault.unseal("../data/encrypted/nested", "../data/decrypted/nested_plaintext", "password");
+    vault.unseal("../data/encrypted/nested", "../data/decrypted", "password");
     std::cout << "Complete!" << std::endl;
 }

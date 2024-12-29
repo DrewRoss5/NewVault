@@ -20,6 +20,7 @@ class Vault{
         void encrypt_file(const std::string& file_path, std::ofstream& out_file);
         void parse_chunk(std::ifstream& vault_f, std::vector<unsigned char>& buf); 
         void parse_salt(std::ifstream& vault_f, std::vector<unsigned char>& salt_buf);
+        void parse_header(std::ifstream& vault_f, Key& key, std::string& file_name);
         std::stack<Key> key_stack;
         std::stack<std::string> path_stack;
 };

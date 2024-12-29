@@ -91,13 +91,7 @@ void Vault::unseal(const std::string& target, const std::string& out_path, const
     while (vault_f.get(header_char)){
         switch (header_char){
             case BEGIN_DIR:
-                prev_key = this->key_stack.top();
-                // parse the vault header
-                parse_salt(vault_f, file_key.salt);
-                file_key.key = hash_key(prev_key.key, file_key.salt);
-                parse_chunk(vault_f, name_ciphertext);
-                decrypt(name_ciphertext, file_key.key, name_plaintext);
-                file_name = std::string(name_plaintext.begin(), name_plaintext.end());
+                parse_header(vault_f, file_key, file_name);
                 file_path = this->path_stack.top() + PATH_SEP + file_name;
                 fs::create_directory(file_path);
                 // update the stacks
@@ -105,13 +99,7 @@ void Vault::unseal(const std::string& target, const std::string& out_path, const
                 path_stack.push(file_path);
                 break;
             case BEGIN_FILE:
-                prev_key = this->key_stack.top();
-                // parse the file header 
-                parse_salt(vault_f, file_key.salt);
-                file_key.key = hash_key(prev_key.key, file_key.salt);
-                parse_chunk(vault_f, name_ciphertext);
-                decrypt(name_ciphertext, file_key.key, name_plaintext);
-                file_name = std::string(name_plaintext.begin(), name_plaintext.end());
+                parse_header(vault_f, file_key, file_name);
                 file_path = this->path_stack.top() + PATH_SEP + file_name;
                 // decrypt the file's contents and write it
                 parse_chunk(vault_f, file_ciphertext);
@@ -136,8 +124,6 @@ void Vault::unseal(const std::string& target, const std::string& out_path, const
                 break;
         }
     }
-    
-
 }
 
 // encrypts the given file/directory. If it's a directory, this recursively encrypts the children. 
@@ -198,4 +184,15 @@ void Vault::parse_salt(std::ifstream& vault_f, std::vector<unsigned char>& salt_
     vault_f.read(salt_hex, SALT_SIZE_HEX);
     salt_hex[SALT_SIZE_HEX] = '\0';
     store_hex(salt_hex, salt_buf);
+}
+
+// parses the buffer for a file or directory
+void Vault::parse_header(std::ifstream& vault_f, Key& file_key, std::string& file_name){
+    std::vector<unsigned char> name_ciphertext, name_plaintext;
+    Key prev_key = this->key_stack.top();
+    parse_salt(vault_f, file_key.salt);
+    file_key.key = hash_key(prev_key.key, file_key.salt);
+    parse_chunk(vault_f, name_ciphertext);
+    decrypt(name_ciphertext, file_key.key, name_plaintext);
+    file_name = std::string(name_plaintext.begin(), name_plaintext.end());
 }
