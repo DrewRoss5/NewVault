@@ -48,7 +48,6 @@ int main(int argc, char** argv){
         }
         std::string input_path = options["input_path"].as<std::string>();
         std::string out_path = (options.count("output_path") == 0) ? (static_cast<std::string>(fs::current_path()) + '/' + input_path) :  options["output_path"].as<std::string>();
-        std::cout << "Input path: " << input_path << "\nOutput path:" << out_path << std::endl;
         std::string password = getpass("Vault Password: ");
         std::string confirm = getpass("Confirm: ");
         if (password != confirm){
@@ -72,7 +71,6 @@ int main(int argc, char** argv){
         }
         std::string input_path = options["input_path"].as<std::string>();
         std::string out_path = (options.count("output_path") == 0) ? static_cast<std::string>(fs::current_path()) :  options["output_path"].as<std::string>();
-        std::cout << "Input path: " << input_path << "\nOutput path:" << out_path << std::endl;
         std::string password = getpass("Vault Password: ");
         std::cout << "Decrypting..." << std::endl;
         try{
