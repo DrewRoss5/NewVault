@@ -18,7 +18,8 @@ class Vault{
         void unseal(const std::string& target, const std::string& out_path, const std::string& password);
     private:
         void encrypt_file(const std::string& file_path, std::ofstream& out_file);
-        void decrypt_file(std::ifstream& in_file); 
+        void parse_chunk(std::ifstream& vault_f, std::vector<unsigned char>& buf); 
+        void parse_salt(std::ifstream& vault_f, std::vector<unsigned char>& salt_buf);
         std::stack<Key> key_stack;
         std::stack<std::string> path_stack;
 };

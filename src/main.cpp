@@ -21,6 +21,7 @@ void error_msg(std::string msg){
 }
 
 int main(int argc, char** argv){
+    /*
     std::cout << "Path to encrypt: " << std::flush;
     std::string input_path;
     std::getline(std::cin, input_path);
@@ -33,8 +34,12 @@ int main(int argc, char** argv){
     std::string output_path;
     std::cout << "Archive path: " << std::flush;
     std::getline(std::cin, output_path);
+    */
     std::cout << "Encrypting..." << std::endl;
     Vault vault;
-    vault.seal(input_path, output_path, password);
-    std::cout << "Encrypted" << std::endl;
+    vault.seal("../data/testdir_nested", "../data/encrypted/nested", "password");
+    std::cout << "Complete!" << std::endl;
+    std::cout << "Decrypting..." << std::endl;
+    vault.unseal("../data/encrypted/nested", "../data/decrypted/nested_plaintext", "password");
+    std::cout << "Complete!" << std::endl;
 }
