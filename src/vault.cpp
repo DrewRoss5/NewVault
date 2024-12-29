@@ -94,7 +94,6 @@ void Vault::unseal(const std::string& target, const std::string& out_path, const
                 parse_header(vault_f, file_key, file_name);
                 file_path = this->path_stack.top() + PATH_SEP + file_name;
                 fs::create_directory(file_path);
-                // update the stacks
                 key_stack.push(file_key);
                 path_stack.push(file_path);
                 break;
