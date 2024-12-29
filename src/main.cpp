@@ -35,8 +35,6 @@ int main(int argc, char** argv){
     std::getline(std::cin, output_path);
     std::cout << "Encrypting..." << std::endl;
     Vault vault;
-    vault.seal(input_path, password, output_path);
+    vault.seal(input_path, output_path, password);
     std::cout << "Encrypted" << std::endl;
-    
-
 }
