@@ -48,6 +48,8 @@ int main(int argc, char** argv){
         }
         std::string input_path = options["input_path"].as<std::string>();
         std::string out_path = (options.count("output_path") == 0) ? (static_cast<std::string>(fs::current_path()) + '/' + input_path) :  options["output_path"].as<std::string>();
+        if (out_path.substr(out_path.length() - 4) != ".nva")
+            out_path += ".nva";
         std::string password = getpass("Vault Password: ");
         std::string confirm = getpass("Confirm: ");
         if (password != confirm){
@@ -71,6 +73,10 @@ int main(int argc, char** argv){
         }
         std::string input_path = options["input_path"].as<std::string>();
         std::string out_path = (options.count("output_path") == 0) ? static_cast<std::string>(fs::current_path()) :  options["output_path"].as<std::string>();
+        if (input_path.substr(input_path.length() - 4) != ".nva"){
+            error_msg("invalid vault file.");
+            return 1;
+        }
         std::string password = getpass("Vault Password: ");
         std::cout << "Decrypting..." << std::endl;
         try{
