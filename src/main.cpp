@@ -48,16 +48,10 @@ int main(int argc, char** argv){
     }
     Vault vault;
     std::string command = options["command"].as<std::string>();
-    // determine the command id
-    int command_id {-1};
-    for (int i = 0; i < COMMAND_COUNT; i++){
-        if (command == commands[i]){
-            command_id = i;
-            break;
-        }
-    }
+    std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"help", HELP}, {"version", VERSION}};
+    int command_id = command_map.count(command) ? command_map[command] : -1;
+    // parse the input path
     std::string input_path, out_path, password, confirm;
-    // parse input path
     if ((command_id == ENCRYPT || command_id == DECRYPT)){
         if (!options.count("input_path")){
                 error_msg("no input path provided");
