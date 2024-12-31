@@ -6,8 +6,15 @@
 
 #include "../inc/vault.hpp"
 
+#define COMMAND_COUNT 4
+#define PARSE_OUT_PATH(DEFAULT)\
+out_path = (options.count("output_path") == 0) ? (DEFAULT) :  options["output_path"].as<std::string>();
+
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
+
+enum COMMAND_CODES{ENCRYPT, DECRYPT, HELP, VERSION};
+std::string commands[] = {"encrypt", "decrypt", "help", "version"};
 
 // displays an error message
 void error_msg(std::string msg){
@@ -41,58 +48,70 @@ int main(int argc, char** argv){
     }
     Vault vault;
     std::string command = options["command"].as<std::string>();
-    if (command == "encrypt"){
+    // determine the command id
+    int command_id {-1};
+    for (int i = 0; i < COMMAND_COUNT; i++){
+        if (command == commands[i]){
+            command_id = i;
+            break;
+        }
+    }
+    std::string input_path, out_path, password, confirm;
+    // parse input path
+    if ((command_id == ENCRYPT || command_id == DECRYPT)){
         if (!options.count("input_path")){
-            error_msg("no input path provided");
-            return 1;
-        }
-        std::string input_path = options["input_path"].as<std::string>();
-        std::string out_path = (options.count("output_path") == 0) ? (static_cast<std::string>(fs::current_path()) + '/' + input_path) :  options["output_path"].as<std::string>();
-        if (out_path.substr(out_path.length() - 4) != ".nva")
-            out_path += ".nva";
-        std::string password = getpass("Vault Password: ");
-        std::string confirm = getpass("Confirm: ");
-        if (password != confirm){
-            error_msg("password does not match confirmation");
-            return 1;
-        }
-        std::cout << "Encrypting..." << std::endl;
-        try{
-            vault.seal(input_path, out_path, password);
-        }
-        catch (std::runtime_error e){
-            error_msg(e.what());
-            return 1;
-        }
-        std::cout << "Completed" << std::endl;
+                error_msg("no input path provided");
+                return 1;
+            }
+            input_path = options["input_path"].as<std::string>();
     }
-    else if (command == "decrypt"){
-        if (!options.count("input_path")){
-            error_msg("no input path provided");
-            return 1;
-        }
-        std::string input_path = options["input_path"].as<std::string>();
-        std::string out_path = (options.count("output_path") == 0) ? static_cast<std::string>(fs::current_path()) :  options["output_path"].as<std::string>();
-        if (input_path.substr(input_path.length() - 4) != ".nva"){
-            error_msg("invalid vault file.");
-            return 1;
-        }
-        std::string password = getpass("Vault Password: ");
-        std::cout << "Decrypting..." << std::endl;
-        try{
-            vault.unseal(input_path, out_path, password);
-        }
-        catch (std::runtime_error e){
-            error_msg(e.what());
-            return 1;
-        }
-        std::cout << "Completed" << std::endl;
-    }
-    else if (command == "help"){
-        std::cout << desc << std::endl;
-    }
-    else{
-        error_msg("unrecognized command.\nProgram help:");
-        std::cout << desc << std::endl;
+    // run the chosen command
+    switch (command_id){
+        case ENCRYPT:
+            PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()) + '/' + input_path + ".nva");
+            if (out_path.substr(out_path.length() - 4) != ".nva")
+                out_path += ".nva";
+            password = getpass("Vault Password: ");
+            confirm = getpass("Confirm: ");
+            if (password != confirm){
+                error_msg("password does not match confirmation");
+                return 1;
+            }
+            std::cout << "Encrypting..." << std::endl;
+            try{
+                vault.seal(input_path, out_path, password);
+            }
+            catch (std::runtime_error e){
+                error_msg(e.what());
+                return 1;
+            }
+            std::cout << "Completed" << std::endl;
+            break;
+        case DECRYPT:
+            if (input_path.substr(input_path.length() - 4) != ".nva"){
+                error_msg("invalid vault file.");
+                return 1;
+            }
+            PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()));
+            password = getpass("Vault Password: ");
+            std::cout << "Decrypting..." << std::endl;
+            try{
+                vault.unseal(input_path, out_path, password);
+            }
+            catch (std::runtime_error e){
+                error_msg(e.what());
+                return 1;
+            }
+            std::cout << "Completed" << std::endl;
+            break;
+        case HELP:
+            std::cout << desc << std::endl;
+            break;
+        case VERSION:
+            std::cout << "NewVault version 0.1.1" << std::endl;
+            break;
+        default:
+            error_msg("unrecognized command.\nProgram help:");
+            std::cout << desc << std::endl;
     }
 }

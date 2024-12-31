@@ -15,12 +15,11 @@
     #define PATH_SEP '/'
 #endif
 
-#define CRYPTO_OFFSET 40 // the size of the MAC and nonce in ciphertext (16 + 24)'
 #define SALT_SIZE_HEX 32
-#define BEGIN_DIR 'd'
-#define END_DIR 'D'
-#define BEGIN_FILE 'f'
-#define SEP_CHAR ';'
+#define BEGIN_DIR   'd'
+#define END_DIR     'D'
+#define BEGIN_FILE  'f'
+#define SEP_CHAR    ';'
 
 
 namespace fs = std::filesystem;
@@ -163,6 +162,14 @@ void Vault::encrypt_file(const std::string& file_path, std::ofstream& out_f){
         // write the encrypted file to the vault 
         out_f << BEGIN_FILE << to_hex(file_key.salt) << to_hex(file_name_cipher) << SEP_CHAR << to_hex(contents_cipher) << SEP_CHAR;
     } 
+}
+
+// clears both stacks in the vault
+void Vault::clear(){
+    while (!key_stack.empty())
+        key_stack.pop();
+    while (!path_stack.empty())
+        key_stack.pop();
 }
 
 // parses a chunk of a vault file to the next seperating character and returns the resulting bytes
