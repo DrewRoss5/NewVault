@@ -30,6 +30,9 @@ There are currently three supported commands:
 - **Important:** When prompted for a vault password, ensure you have either memorized the password or stored it somewhere, as there is currently no way to access a vault file without the original password, and passwords cannot be changed.
 #### `newvault decrypt <archive_path> [out_path]`
 - Decrypts a vault archive and stores the decrypted contents to `out_path`.
-- If `out_path` is not specified the vault's content will simply be stored to the current working directory. 
+- If `out_path` is not specified the vault's content will simply be stored to the current working directory.
+#### `newvault change_password <archive_path> [out_path]`
+- Creates a copy of the vault at `archive_path` and saves it with a new password to `out_path`.
+- If `out_path` is not specified, the file's password is changed in place.
 #### `newvault help`
 - Displays the help menu
