@@ -56,7 +56,7 @@ int main(int argc, char** argv){
     int command_id = command_map.count(command) ? command_map[command] : -1;
     // parse the input path
     std::string input_path, out_path, password, confirm, old_path;
-    if ((command_id != HELP && command_id != VERSION)){
+    if ((command_id == ENCRYPT || command_id == DECRYPT || command_id == CHANGE_PW)){
         if (argc < 3){
                 ERROR_MSG("no input path provided");
                 return 1;
@@ -152,7 +152,7 @@ int main(int argc, char** argv){
             std::cout << "NewVault version 0.1.3" << std::endl;
             break;
         default:
-            ERROR_MSG("unrecognized command.\nProgram help:");
+            ERROR_MSG("unrecognized command.");
             print_help();
     }
 }
