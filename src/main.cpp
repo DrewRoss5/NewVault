@@ -6,15 +6,15 @@
 
 #include "../inc/vault.hpp"
 
-#define COMMAND_COUNT 4
+#define COMMAND_COUNT 5
 #define PARSE_OUT_PATH(DEFAULT)\
 out_path = (options.count("output_path") == 0) ? (DEFAULT) :  options["output_path"].as<std::string>();
 
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
 
-enum COMMAND_CODES{ENCRYPT, DECRYPT, HELP, VERSION};
-std::string commands[] = {"encrypt", "decrypt", "help", "version"};
+enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, HELP, VERSION};
+std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"help", HELP}, {"version", VERSION}};
 
 // displays an error message
 void error_msg(std::string msg){
@@ -48,11 +48,10 @@ int main(int argc, char** argv){
     }
     Vault vault;
     std::string command = options["command"].as<std::string>();
-    std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"help", HELP}, {"version", VERSION}};
     int command_id = command_map.count(command) ? command_map[command] : -1;
     // parse the input path
-    std::string input_path, out_path, password, confirm;
-    if ((command_id == ENCRYPT || command_id == DECRYPT)){
+    std::string input_path, out_path, password, confirm, old_path;
+    if ((command_id != HELP && command_id != VERSION)){
         if (!options.count("input_path")){
                 error_msg("no input path provided");
                 return 1;
@@ -65,7 +64,7 @@ int main(int argc, char** argv){
             PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()) + '/' + input_path + ".nva");
             if (out_path.substr(out_path.length() - 4) != ".nva")
                 out_path += ".nva";
-            password = getpass("Vault Password: ");
+            password = getpass("Vault password: ");
             confirm = getpass("Confirm: ");
             if (password != confirm){
                 error_msg("password does not match confirmation");
@@ -87,22 +86,64 @@ int main(int argc, char** argv){
                 return 1;
             }
             PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()));
-            password = getpass("Vault Password: ");
+            password = getpass("Vault password: ");
             std::cout << "Decrypting..." << std::endl;
             try{
                 vault.unseal(input_path, out_path, password);
             }
             catch (std::runtime_error e){
+                fs::remove(out_path);
                 error_msg(e.what());
                 return 1;
             }
             std::cout << "Completed" << std::endl;
             break;
+        case CHANGE_PW:
+            if (input_path.substr(input_path.length() - 4) != ".nva"){
+                error_msg("invalid vault file.");
+                return 1;
+            }
+            PARSE_OUT_PATH(input_path);
+            // decrypt the vault to a temporary directory
+            password = getpass("Current password: ");
+            try{
+                vault.unseal(input_path, "TMP_VAULT", password);
+            }
+            catch (std::runtime_error e){
+                fs::remove_all("TMP_VAULT");
+                error_msg(e.what());
+                return 1;
+            }
+            // get the name of the originally encryptd path
+            fs::current_path("TMP_VAULT");
+            for (auto& tmp : fs::directory_iterator(fs::current_path())){
+                old_path = tmp.path();
+                break; // this should have only one item in it so there's no need to loop again
+            }
+            // re-encrypt thee vault with a new password
+            password = getpass("New vault password: ");
+            confirm = getpass("Confrim new password: ");
+            if (password != confirm){
+                error_msg("New password does not match confirmation");
+                fs::current_path("..");
+                fs::remove_all("TMP_VAULT");
+                return 1;
+            }
+            try{
+                vault.seal(old_path, "../"+out_path, password);
+            }
+            catch (std::runtime_error e){
+                error_msg(e.what());
+                return 1;
+            }
+            fs::current_path("..");
+            fs::remove_all("TMP_VAULT");
+            break;
         case HELP:
             std::cout << desc << std::endl;
             break;
         case VERSION:
-            std::cout << "NewVault version 0.1.1" << std::endl;
+            std::cout << "NewVault version 0.1.2" << std::endl;
             break;
         default:
             error_msg("unrecognized command.\nProgram help:");
