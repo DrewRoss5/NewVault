@@ -2,22 +2,43 @@
 #include <sodium.h>
 #include <filesystem>
 #include <unistd.h>
-#include <boost/program_options.hpp>
+#include <map>
 
 #include "../inc/vault.hpp"
 
-#define PARSE_OUT_PATH(DEFAULT)\
-out_path = (options.count("output_path") == 0) ? (DEFAULT) :  options["output_path"].as<std::string>()
-
-#define ERROR_MSG(MSG)\
-std::cerr << "\033[31merror:\033[0m " << MSG << std::endl
+#define PARSE_OUT_PATH(DEFAULT) out_path = (argc >= 4) ? argv[3] : DEFAULT
+#define ERROR_MSG(MSG) std::cerr << "\033[31merror:\033[0m " << MSG << std::endl
 
 
 namespace fs = std::filesystem;
-namespace po = boost::program_options;
 
 enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, HELP, VERSION};
 std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"help", HELP}, {"version", VERSION}};
+
+void print_help(std::string command_name = ""){
+    std::string commands[] = {"encrypt", "decrypt", "change_password", "help", "version"};
+    std::string arguments[] = {"<input path> [archive path]", "<archive path> [output path]", "<archive path> [new archive path]", "[command]", ""};
+    std::string descriptions[] = {
+        "Encrypts the contents in the input path, and creates an encrypted vault archive at the archive path, if no archive path is specified, an archive will be made in the current working directory",
+        "Decrypts the contents of the vault archive and saves them to the output path, if no output path is specified, the decrypted contents will be saved to the current working directory.",
+        "Creates a copy of the vault at archive_path and saves it with a new password to the new archive path, if the new path is not specified, this will change the password in place",
+        "Displays this menu",
+        "Displays the current version of newvault"
+    };
+    if (command_name == ""){
+        std::cout << "Commands:" << std::endl;
+        for (int i = 0; i < 5; i++)
+            std::cout << "\t" << std::left << std::setw(24) << commands[i] << arguments[i] << std::endl;
+    }
+    else{
+        if (command_map.count(command_name) == 0)
+            std::cout << "unrecognized command" << std::endl;
+        else{
+            int command_code = command_map[command_name];
+            std::cout << commands[command_code] <<  "    " << arguments[command_code] << "\n\t" << descriptions[command_code] << std::endl;
+        }
+    }
+}
 
 int main(int argc, char** argv){
     // ensure sodium can be intialized
@@ -25,36 +46,22 @@ int main(int argc, char** argv){
         ERROR_MSG("failed to initialize libsodium");
         return 1;
     }
-    // parse user aguments
-    po::options_description desc("NewVault");
-    desc.add_options()
-        ("command", po::value<std::string>(), "the command to be run. Valid options are: encrypt, decrypt and help")
-        ("input_path", po::value<std::string>(), "the path of the directory or file to be encrypted OR the path of the vault file to be read if decrypting")
-        ("output_path", po::value<std::string>(), "the path of the vault file to store encrypted files to OR the path to write the decrypted vault's contents to if decrypting")
-    ;
-    po::variables_map options;
-    po::positional_options_description pos;
-    pos.add("command", 1);
-    pos.add("input_path", 1);
-    pos.add("output_path", 1);
-    auto parser = po::command_line_parser(argc, argv).options(desc).positional(pos).run();
-    po::store(parser, options);
     // run the user's selected command
-    if (!options.count("command")){
+    if (argc < 2){
         ERROR_MSG("no command provided");
         return 1;
     }
     Vault vault;
-    std::string command = options["command"].as<std::string>();
+    std::string command = argv[1];
     int command_id = command_map.count(command) ? command_map[command] : -1;
     // parse the input path
     std::string input_path, out_path, password, confirm, old_path;
     if ((command_id != HELP && command_id != VERSION)){
-        if (!options.count("input_path")){
+        if (argc < 3){
                 ERROR_MSG("no input path provided");
                 return 1;
             }
-            input_path = options["input_path"].as<std::string>();
+            input_path = argv[2];
     }
     // run the chosen command
     switch (command_id){
@@ -138,13 +145,14 @@ int main(int argc, char** argv){
             fs::remove_all("TMP_VAULT");
             break;
         case HELP:
-            std::cout << desc << std::endl;
+            command = (argc >= 3) ? argv[2] : "";
+            print_help(command);
             break;
         case VERSION:
-            std::cout << "NewVault version 0.1.2" << std::endl;
+            std::cout << "NewVault version 0.1.3" << std::endl;
             break;
         default:
             ERROR_MSG("unrecognized command.\nProgram help:");
-            std::cout << desc << std::endl;
+            print_help();
     }
 }
