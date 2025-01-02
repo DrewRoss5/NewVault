@@ -6,9 +6,12 @@
 
 #include "../inc/vault.hpp"
 
-#define COMMAND_COUNT 5
 #define PARSE_OUT_PATH(DEFAULT)\
-out_path = (options.count("output_path") == 0) ? (DEFAULT) :  options["output_path"].as<std::string>();
+out_path = (options.count("output_path") == 0) ? (DEFAULT) :  options["output_path"].as<std::string>()
+
+#define ERROR_MSG(MSG)\
+std::cerr << "\033[31merror:\033[0m " << MSG << std::endl
+
 
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
@@ -16,15 +19,10 @@ namespace po = boost::program_options;
 enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, HELP, VERSION};
 std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"help", HELP}, {"version", VERSION}};
 
-// displays an error message
-void error_msg(std::string msg){
-    std::cerr << "\033[31merror:\033[0m " << msg << std::endl;
-}
-
 int main(int argc, char** argv){
     // ensure sodium can be intialized
     if (sodium_init() != 0){
-        error_msg("failed to initialize libsodium");
+        ERROR_MSG("failed to initialize libsodium");
         return 1;
     }
     // parse user aguments
@@ -43,7 +41,7 @@ int main(int argc, char** argv){
     po::store(parser, options);
     // run the user's selected command
     if (!options.count("command")){
-        error_msg("no command provided");
+        ERROR_MSG("no command provided");
         return 1;
     }
     Vault vault;
@@ -53,7 +51,7 @@ int main(int argc, char** argv){
     std::string input_path, out_path, password, confirm, old_path;
     if ((command_id != HELP && command_id != VERSION)){
         if (!options.count("input_path")){
-                error_msg("no input path provided");
+                ERROR_MSG("no input path provided");
                 return 1;
             }
             input_path = options["input_path"].as<std::string>();
@@ -67,7 +65,7 @@ int main(int argc, char** argv){
             password = getpass("Vault password: ");
             confirm = getpass("Confirm: ");
             if (password != confirm){
-                error_msg("password does not match confirmation");
+                ERROR_MSG("password does not match confirmation");
                 return 1;
             }
             std::cout << "Encrypting..." << std::endl;
@@ -75,14 +73,14 @@ int main(int argc, char** argv){
                 vault.seal(input_path, out_path, password);
             }
             catch (std::runtime_error e){
-                error_msg(e.what());
+                ERROR_MSG(e.what());
                 return 1;
             }
             std::cout << "Completed" << std::endl;
             break;
         case DECRYPT:
             if (input_path.substr(input_path.length() - 4) != ".nva"){
-                error_msg("invalid vault file.");
+                ERROR_MSG("invalid vault file.");
                 return 1;
             }
             PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()));
@@ -93,14 +91,14 @@ int main(int argc, char** argv){
             }
             catch (std::runtime_error e){
                 fs::remove(out_path);
-                error_msg(e.what());
+                ERROR_MSG(e.what());
                 return 1;
             }
             std::cout << "Completed" << std::endl;
             break;
         case CHANGE_PW:
             if (input_path.substr(input_path.length() - 4) != ".nva"){
-                error_msg("invalid vault file.");
+                ERROR_MSG("invalid vault file.");
                 return 1;
             }
             PARSE_OUT_PATH(input_path);
@@ -111,7 +109,7 @@ int main(int argc, char** argv){
             }
             catch (std::runtime_error e){
                 fs::remove_all("TMP_VAULT");
-                error_msg(e.what());
+                ERROR_MSG(e.what());
                 return 1;
             }
             // get the name of the originally encryptd path
@@ -124,7 +122,7 @@ int main(int argc, char** argv){
             password = getpass("New vault password: ");
             confirm = getpass("Confrim new password: ");
             if (password != confirm){
-                error_msg("New password does not match confirmation");
+                ERROR_MSG("New password does not match confirmation");
                 fs::current_path("..");
                 fs::remove_all("TMP_VAULT");
                 return 1;
@@ -133,7 +131,7 @@ int main(int argc, char** argv){
                 vault.seal(old_path, "../"+out_path, password);
             }
             catch (std::runtime_error e){
-                error_msg(e.what());
+                ERROR_MSG(e.what());
                 return 1;
             }
             fs::current_path("..");
@@ -146,7 +144,7 @@ int main(int argc, char** argv){
             std::cout << "NewVault version 0.1.2" << std::endl;
             break;
         default:
-            error_msg("unrecognized command.\nProgram help:");
+            ERROR_MSG("unrecognized command.\nProgram help:");
             std::cout << desc << std::endl;
     }
 }
