@@ -16,8 +16,8 @@ enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, HELP, VERSION};
 std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"help", HELP}, {"version", VERSION}};
 
 void print_help(std::string command_name = ""){
-    std::string commands[] = {"encrypt", "decrypt", "change_password", "help", "version"};
-    std::string arguments[] = {"<input path> [archive path]", "<archive path> [output path]", "<archive path> [new archive path]", "[command]", ""};
+    std::string commands[] = {"Command:", "  encrypt", "  decrypt", "  change_password", "  help", "  version"};
+    std::string arguments[] = {"Arguments:", "  <input path> [archive path]", "  <archive path> [output path]", "  <archive path> [new archive path]", "  [command]", ""};
     std::string descriptions[] = {
         "Encrypts the contents in the input path, and creates an encrypted vault archive at the archive path, if no archive path is specified, an archive will be made in the current working directory",
         "Decrypts the contents of the vault archive and saves them to the output path, if no output path is specified, the decrypted contents will be saved to the current working directory.",
@@ -26,8 +26,8 @@ void print_help(std::string command_name = ""){
         "Displays the current version of newvault"
     };
     if (command_name == ""){
-        std::cout << "Commands:" << std::endl;
-        for (int i = 0; i < 5; i++)
+        std::cout << "NewVault Commands:" << std::endl;
+        for (int i = 0; i < 6; i++)
             std::cout << "\t" << std::left << std::setw(24) << commands[i] << arguments[i] << std::endl;
     }
     else{
