@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <sstream>
 #include <iostream>
+#include <sodium/crypto_secretbox.h>
 
 #include "../inc/vault.hpp"
 #include "../inc/cryptoutils.hpp"
@@ -15,7 +16,9 @@
     #define PATH_SEP '/'
 #endif
 
+#define SALT_SIZE 16
 #define SALT_SIZE_HEX 32
+#define CRYPTO_OFFSET (crypto_secretbox_MACBYTES * 2)
 #define BEGIN_DIR   'd'
 #define END_DIR     'D'
 #define BEGIN_FILE  'f'
@@ -51,9 +54,13 @@ void Vault::seal(const std::string& target, const std::string& out_file,  const 
     gen_salt(master_key.salt);
     master_key.key = gen_key(password, master_key.salt);
     this->key_stack.push(master_key);
+    // create and encrypt a hash of the master key
+    std::vector<unsigned char> key_hash_ciphertext;
+    std::vector<unsigned char> key_hash = hash_key(master_key.key, master_key.salt);
+    encrypt(key_hash, master_key.key, key_hash_ciphertext);
     // create the encrypted file
     std::ofstream out(out_file, std::ios::binary);
-    out << to_hex(master_key.salt);
+    out << to_hex(master_key.salt) << to_hex(key_hash_ciphertext);
     this->encrypt_file(target, out);
     out.close();
 
@@ -75,11 +82,14 @@ void Vault::unseal(const std::string& target, const std::string& out_path, const
     // read the salt from the vault file
     Key master_key;
     std::vector<unsigned char> master_key_salt;
-    parse_salt(vault_f, master_key_salt);
+    parse_hex_str(vault_f, master_key_salt, SALT_SIZE_HEX);
     master_key.salt = master_key_salt;
     master_key.key = gen_key(password, master_key.salt);
-    key_stack.push(master_key);
-    path_stack.push(out_path);
+    // validate the master key
+    std::vector<unsigned char> checksum = hash_key(master_key.key, master_key.salt);
+    std::vector<unsigned char> key_hash, key_hash_ciphertext;
+    parse_hex_str(vault_f, key_hash_ciphertext, SALT_SIZE_HEX + CRYPTO_OFFSET);
+    decrypt(key_hash_ciphertext, master_key.key, key_hash); // decrypt will automatically raise an error if the master key is invalid, serving as our validation
     // read the contents of the vault 
     // we assume that any character reached in this part of the loop is a vault/file header 
     char header_char;
@@ -184,19 +194,20 @@ void Vault::parse_chunk(std::ifstream& vault_f, std::vector<unsigned char>& buf)
 }
 
 // parses a 16-byte salt from the vault file 
-void Vault::parse_salt(std::ifstream& vault_f, std::vector<unsigned char>& salt_buf){
-    salt_buf.clear();
-    char salt_hex[SALT_SIZE_HEX + 1];
-    vault_f.read(salt_hex, SALT_SIZE_HEX);
-    salt_hex[SALT_SIZE_HEX] = '\0';
-    store_hex(salt_hex, salt_buf);
+void Vault::parse_hex_str(std::ifstream& vault_f, std::vector<unsigned char>& byte_buf, unsigned int size){
+    byte_buf.clear();
+    char* hex_buf = new char[size + 1];
+    vault_f.read(hex_buf, size);
+    hex_buf[size] = '\0';
+    store_hex(hex_buf, byte_buf);
+    delete[] hex_buf;
 }
 
 // parses the buffer for a file or directory
 void Vault::parse_header(std::ifstream& vault_f, Key& file_key, std::string& file_name){
     std::vector<unsigned char> name_ciphertext, name_plaintext;
     Key prev_key = this->key_stack.top();
-    parse_salt(vault_f, file_key.salt);
+    parse_hex_str(vault_f, file_key.salt, SALT_SIZE_HEX);
     file_key.key = hash_key(prev_key.key, file_key.salt);
     parse_chunk(vault_f, name_ciphertext);
     decrypt(name_ciphertext, file_key.key, name_plaintext);
