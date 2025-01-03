@@ -6,7 +6,6 @@ While NewVault uses LibSodium for cryptographic primatives, and currently has no
 
 
 ### Roadmap / ToDo
-- Add more robust error handling
 - Add key exporting/importing functionality
 - Improve Windows compatibility
 - Switch from Hex formatting to Base64
