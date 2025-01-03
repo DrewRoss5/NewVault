@@ -18,7 +18,7 @@
 
 #define SALT_SIZE 16
 #define SALT_SIZE_HEX 32
-#define CRYPTO_OFFSET (crypto_secretbox_MACBYTES * 2)
+#define HASH_CIPHERTEXT_SIZE_HEX 144
 #define BEGIN_DIR   'd'
 #define END_DIR     'D'
 #define BEGIN_FILE  'f'
@@ -88,8 +88,15 @@ void Vault::unseal(const std::string& target, const std::string& out_path, const
     // validate the master key
     std::vector<unsigned char> checksum = hash_key(master_key.key, master_key.salt);
     std::vector<unsigned char> key_hash, key_hash_ciphertext;
-    parse_hex_str(vault_f, key_hash_ciphertext, SALT_SIZE_HEX + CRYPTO_OFFSET);
-    decrypt(key_hash_ciphertext, master_key.key, key_hash); // decrypt will automatically raise an error if the master key is invalid, serving as our validation
+    parse_hex_str(vault_f, key_hash_ciphertext, HASH_CIPHERTEXT_SIZE_HEX);
+    try{
+        decrypt(key_hash_ciphertext, master_key.key, key_hash);
+    }
+    catch (std::runtime_error){
+        throw std::runtime_error("invalid password or master key");
+    }
+    this->key_stack.push(master_key);
+    this->path_stack.push(out_path);
     // read the contents of the vault 
     // we assume that any character reached in this part of the loop is a vault/file header 
     char header_char;
@@ -132,6 +139,27 @@ void Vault::unseal(const std::string& target, const std::string& out_path, const
                 break;
         }
     }
+}
+
+// validates the password for a given vault file, and returns a hex string of the vault's master key if it is valid
+std::string Vault::export_master_key(const std::string& file_path, const std::string& password){
+    std::ifstream vault_f(file_path);
+    if (!vault_f.good())
+        throw std::runtime_error("failed to read the vault file. Does it exist?");
+    Key master_key;
+    parse_hex_str(vault_f, master_key.salt, SALT_SIZE_HEX);
+    master_key.key = gen_key(password, master_key.salt);
+    std::vector<unsigned char> checksum = hash_key(master_key.key, master_key.salt);
+    std::vector<unsigned char> key_hash_ciphertext, key_hash;
+    parse_hex_str(vault_f, key_hash_ciphertext, HASH_CIPHERTEXT_SIZE_HEX);
+    try{
+        decrypt(key_hash_ciphertext, master_key.key, key_hash);
+        return to_hex(master_key.key);
+    }
+    catch (std::runtime_error e){
+        throw std::runtime_error("invalid password");
+    }
+
 }
 
 // encrypts the given file/directory. If it's a directory, this recursively encrypts the children. 
@@ -193,7 +221,7 @@ void Vault::parse_chunk(std::ifstream& vault_f, std::vector<unsigned char>& buf)
     store_hex(hex_str, buf);
 }
 
-// parses a 16-byte salt from the vault file 
+// parses a hex string of a given size and stores the resulting bytes to a buffer
 void Vault::parse_hex_str(std::ifstream& vault_f, std::vector<unsigned char>& byte_buf, unsigned int size){
     byte_buf.clear();
     char* hex_buf = new char[size + 1];

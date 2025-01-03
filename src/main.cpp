@@ -12,16 +12,17 @@
 
 namespace fs = std::filesystem;
 
-enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, HELP, VERSION};
-std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"help", HELP}, {"version", VERSION}};
+enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, EXPORT_KEY, HELP, VERSION};
+std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"export_key", EXPORT_KEY}, {"help", HELP}, {"version", VERSION}};
 
 void print_help(std::string command_name = ""){
-    std::string commands[] = {"Command:", "  encrypt", "  decrypt", "  change_password", "  help", "  version"};
-    std::string arguments[] = {"Arguments:", "  <input path> [archive path]", "  <archive path> [output path]", "  <archive path> [new archive path]", "  [command]", ""};
-    std::string descriptions[] = {
+    std::string commands[] = {"Command:", "  encrypt", "  decrypt", "  change_password", "  export_key", "  help", "  version"};
+    std::string arguments[] = {"Arguments:", "  <input path> [archive path]", "  <archive path> [output path]", "  <archive path> [new archive path]", "  <archive path> [key path]","  [command]", ""};
+    std::string descriptions[] = { "",
         "Encrypts the contents in the input path, and creates an encrypted vault archive at the archive path, if no archive path is specified, an archive will be made in the current working directory",
         "Decrypts the contents of the vault archive and saves them to the output path, if no output path is specified, the decrypted contents will be saved to the current working directory.",
         "Creates a copy of the vault at archive_path and saves it with a new password to the new archive path, if the new path is not specified, this will change the password in place",
+        "Exports the master key for the the provided archive, and saves it to the key path. If no key path is provided, this will simply write the key to the terminal",
         "Displays this menu",
         "Displays the current version of newvault"
     };
@@ -34,8 +35,8 @@ void print_help(std::string command_name = ""){
         if (command_map.count(command_name) == 0)
             std::cout << "unrecognized command" << std::endl;
         else{
-            int command_code = command_map[command_name];
-            std::cout << commands[command_code] <<  "    " << arguments[command_code] << "\n\t" << descriptions[command_code] << std::endl;
+            int command_code = command_map[command_name] + 1;
+            std::cout << commands[command_code] <<  "    " << arguments[command_code] << "\n\t" << descriptions[command_code]<< std::endl;
         }
     }
 }
@@ -55,8 +56,8 @@ int main(int argc, char** argv){
     std::string command = argv[1];
     int command_id = command_map.count(command) ? command_map[command] : -1;
     // parse the input path
-    std::string input_path, out_path, password, confirm, old_path;
-    if ((command_id == ENCRYPT || command_id == DECRYPT || command_id == CHANGE_PW)){
+    std::string input_path, out_path, password, confirm, old_path, master_key;
+    if ((command_id == ENCRYPT || command_id == DECRYPT || command_id == CHANGE_PW || command_id == EXPORT_KEY)){
         if (argc < 3){
                 ERROR_MSG("no input path provided");
                 return 1;
@@ -64,6 +65,7 @@ int main(int argc, char** argv){
             input_path = argv[2];
     }
     // run the chosen command
+    std::ofstream out;
     switch (command_id){
         case ENCRYPT:
             PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()) + '/' + input_path + ".nva");
@@ -144,6 +146,26 @@ int main(int argc, char** argv){
             fs::current_path("..");
             fs::remove_all("TMP_VAULT");
             break;
+        case EXPORT_KEY:
+            if (input_path.substr(input_path.length() - 4) != ".nva"){
+                ERROR_MSG("invalid vault file.");
+                return 1;
+            }
+            password = getpass("Password: ");
+            try{
+                master_key = vault.export_master_key(input_path, password);
+                if (argc >= 4){
+                    std::ofstream(argv[3]) << master_key;
+                    std::cout << "Key exported" << std::endl;
+                }
+                else
+                    std::cout << master_key << std::endl;
+            }
+            catch (std::runtime_error e){
+                ERROR_MSG(e.what());
+                return 1;
+            }
+            break;
         case HELP:
             command = (argc >= 3) ? argv[2] : "";
             print_help(command);
@@ -155,4 +177,5 @@ int main(int argc, char** argv){
             ERROR_MSG("unrecognized command.");
             print_help();
     }
+    return 0;
 }

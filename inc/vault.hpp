@@ -20,7 +20,7 @@ class Vault{
         void seal(const std::string& target, const std::string& out_path, const std::string& password);
         void unseal(const std::string& target, const std::string& out_path, const std::string& password);
         void unseal(const std::string& target, const std::string& out_path, const std::vector<unsigned char>& master_key);
-        std::string export_master_key();
+        std::string export_master_key(const std::string& file_path, const std::string& password);
         void clear();
     private:
         void encrypt_file(const std::string& file_path, std::ofstream& out_file);
