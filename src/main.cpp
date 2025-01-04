@@ -185,7 +185,7 @@ int main(int argc, char** argv){
             print_help(command);
             break;
         case VERSION:
-            std::cout << "NewVault version 0.1.3" << std::endl;
+            std::cout << "NewVault version 0.1.4" << std::endl;
             break;
         default:
             std::cerr << "\033[31merror:\033[0m unrecognized command" << std::endl;
