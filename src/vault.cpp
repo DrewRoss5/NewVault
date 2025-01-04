@@ -85,6 +85,11 @@ void Vault::unseal(const std::string& target, const std::string& out_path, const
     parse_hex_str(vault_f, master_key_salt, SALT_SIZE_HEX);
     master_key.salt = master_key_salt;
     master_key.key = gen_key(password, master_key.salt);
+    this->unseal(vault_f, out_path, master_key);
+}
+
+// decrypts a vault archive file and stores the contents to the output directory
+void Vault::unseal(std::ifstream& vault_f, const std::string& out_path, const Key& master_key){
     // validate the master key
     std::vector<unsigned char> checksum = hash_key(master_key.key, master_key.salt);
     std::vector<unsigned char> key_hash, key_hash_ciphertext;

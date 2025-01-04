@@ -19,7 +19,7 @@ class Vault{
         Vault() {}
         void seal(const std::string& target, const std::string& out_path, const std::string& password);
         void unseal(const std::string& target, const std::string& out_path, const std::string& password);
-        void unseal(const std::string& target, const std::string& out_path, const std::vector<unsigned char>& master_key);
+        void unseal(std::ifstream& vault_f, const std::string& out_path, const Key& master_key);
         std::string export_master_key(const std::string& file_path, const std::string& password);
         void clear();
     private:
