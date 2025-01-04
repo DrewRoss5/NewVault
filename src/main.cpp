@@ -6,14 +6,16 @@
 
 #include "../inc/vault.hpp"
 
+#define KEY_SIZE 64
+
 #define PARSE_OUT_PATH(DEFAULT) out_path = (argc >= 4) ? argv[3] : DEFAULT
 #define ERROR_MSG(MSG) std::cerr << "\033[31merror:\033[0m " << MSG << std::endl
 
 
 namespace fs = std::filesystem;
 
-enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, EXPORT_KEY, HELP, VERSION};
-std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"export_key", EXPORT_KEY}, {"help", HELP}, {"version", VERSION}};
+enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, EXPORT_KEY, IMPORT, HELP, VERSION};
+std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"export_key", EXPORT_KEY}, {"import", IMPORT}, {"help", HELP}, {"version", VERSION}};
 
 void print_help(std::string command_name = ""){
     std::string commands[] = {"Command:", "  encrypt", "  decrypt", "  change_password", "  export_key", "  help", "  version"};
@@ -56,8 +58,8 @@ int main(int argc, char** argv){
     std::string command = argv[1];
     int command_id = command_map.count(command) ? command_map[command] : -1;
     // parse the input path
-    std::string input_path, out_path, password, confirm, old_path, master_key;
-    if ((command_id == ENCRYPT || command_id == DECRYPT || command_id == CHANGE_PW || command_id == EXPORT_KEY)){
+    std::string input_path, out_path, password, confirm, old_path, master_key, key_str;
+    if ((command_id != -1 && command_id != HELP && command_id != VERSION)){
         if (argc < 3){
                 ERROR_MSG("no input path provided");
                 return 1;
@@ -66,6 +68,10 @@ int main(int argc, char** argv){
     }
     // run the chosen command
     std::ofstream out;
+    std::ifstream in;
+    Key file_key;
+    std::vector<unsigned char> key_bytes, key_salt;
+    char salt_str[33];
     switch (command_id){
         case ENCRYPT:
             PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()) + '/' + input_path + ".nva");
@@ -164,6 +170,42 @@ int main(int argc, char** argv){
             catch (std::runtime_error e){
                 ERROR_MSG(e.what());
                 return 1;
+            }
+            break;
+        case IMPORT:
+            std::cout << input_path << std::endl;
+            if (input_path.substr(input_path.length() - 4) != ".nva"){
+                ERROR_MSG("invalid vault file.");
+                return 1;
+            }
+            PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()));
+            key_str = getpass("File key: ");
+            try{
+                if(key_str.size() != KEY_SIZE)
+                    throw std::runtime_error("");
+                store_hex(key_str, key_bytes);
+            }
+            catch (...){
+                ERROR_MSG("invalid file key");
+                return 1;
+            }
+            in = std::ifstream(input_path);
+            if (!in.good()){
+                ERROR_MSG("invalid input file");
+                return 1;
+            }
+            in.read(salt_str, 32);
+            salt_str[32] = '\0';
+            store_hex(salt_str, key_salt);
+            try{
+                std::cout << "Decrypting..." << std::endl;
+                file_key.key = key_bytes;
+                file_key.salt = key_salt;
+                vault.unseal(in, out_path, file_key);
+                std::cout << "Completed" << std::endl;
+            }
+            catch (std::runtime_error e){
+                ERROR_MSG(e.what());
             }
             break;
         case HELP:

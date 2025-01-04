@@ -68,7 +68,7 @@ void Vault::seal(const std::string& target, const std::string& out_file,  const 
 
 // decrypts a vault archive file and stores the contents to the output directory
 void Vault::unseal(const std::string& target, const std::string& out_path, const std::string& password){
-    // ensure the output path is a valid direct
+    // ensure the output path is a valid directory
     if (!fs::is_directory(out_path)){
         if (!fs::exists(out_path))
             fs::create_directory(out_path);
