@@ -22,19 +22,20 @@ enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, EXPORT_KEY, IMPORT, HELP, VERSIO
 std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"export_key", EXPORT_KEY}, {"import", IMPORT}, {"help", HELP}, {"version", VERSION}};
 
 void print_help(std::string command_name = ""){
-    std::string commands[] = {"Command:", "  encrypt", "  decrypt", "  change_password", "  export_key", "  help", "  version"};
-    std::string arguments[] = {"Arguments:", "  <input path> [archive path]", "  <archive path> [output path]", "  <archive path> [new archive path]", "  <archive path> [key path]","  [command]", ""};
+    std::string commands[] = {"Command:", "  encrypt", "  decrypt", "  change_password", "  export_key", "  import", "  help", "  version"};
+    std::string arguments[] = {"Arguments:", "  <input path> [archive path]", "  <archive path> [output path]", "  <archive path> [new archive path]", "  <archive path> [key path]", "  <archive path> [output path]", "  [command]", ""};
     std::string descriptions[] = { "",
         "Encrypts the contents in the input path, and creates an encrypted vault archive at the archive path, if no archive path is specified, an archive will be made in the current working directory",
         "Decrypts the contents of the vault archive and saves them to the output path, if no output path is specified, the decrypted contents will be saved to the current working directory.",
         "Creates a copy of the vault at archive_path and saves it with a new password to the new archive path, if the new path is not specified, this will change the password in place",
         "Exports the master key for the the provided archive, and saves it to the key path. If no key path is provided, this will simply write the key to the terminal",
+        "Works like the decrypt command, but accepts a 256-bit hex-encoded key instead of a regular password",
         "Displays this menu",
         "Displays the current version of newvault"
     };
     if (command_name == ""){
         std::cout << "NewVault Commands:" << std::endl;
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 8; i++)
             std::cout << "\t" << std::left << std::setw(24) << commands[i] << arguments[i] << std::endl;
     }
     else{
