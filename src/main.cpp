@@ -9,7 +9,11 @@
 #define KEY_SIZE 64
 
 #define PARSE_OUT_PATH(DEFAULT) out_path = (argc >= 4) ? argv[3] : DEFAULT
-#define ERROR_MSG(MSG) std::cerr << "\033[31merror:\033[0m " << MSG << std::endl
+#define ERROR_CRASH(MSG) \
+    {\
+        std::cerr << "\033[31merror:\033[0m " << MSG << std::endl;\
+        return 1;\
+    }
 
 
 namespace fs = std::filesystem;
@@ -45,26 +49,20 @@ void print_help(std::string command_name = ""){
 
 int main(int argc, char** argv){
     // ensure sodium can be intialized
-    if (sodium_init() != 0){
-        ERROR_MSG("failed to initialize libsodium");
-        return 1;
-    }
+    if (sodium_init() != 0)
+        ERROR_CRASH("libsodium could not be intialize")
     // run the user's selected command
-    if (argc < 2){
-        ERROR_MSG("no command provided");
-        return 1;
-    }
+    if (argc < 2)
+        ERROR_CRASH("no command provided")
     Vault vault;
     std::string command = argv[1];
     int command_id = command_map.count(command) ? command_map[command] : -1;
     // parse the input path
     std::string input_path, out_path, password, confirm, old_path, master_key, key_str;
     if ((command_id != -1 && command_id != HELP && command_id != VERSION)){
-        if (argc < 3){
-                ERROR_MSG("no input path provided");
-                return 1;
-            }
-            input_path = argv[2];
+        if (argc < 3)
+            ERROR_CRASH("no input path provided")
+        input_path = argv[2];
     }
     // run the chosen command
     std::ofstream out;
@@ -79,25 +77,19 @@ int main(int argc, char** argv){
                 out_path += ".nva";
             password = getpass("Vault password: ");
             confirm = getpass("Confirm: ");
-            if (password != confirm){
-                ERROR_MSG("password does not match confirmation");
-                return 1;
-            }
+            if (password != confirm)
+                ERROR_CRASH("password does match confirmation");
             std::cout << "Encrypting..." << std::endl;
             try{
                 vault.seal(input_path, out_path, password);
             }
-            catch (std::runtime_error e){
-                ERROR_MSG(e.what());
-                return 1;
-            }
+            catch (std::runtime_error e)
+                ERROR_CRASH(e.what());
             std::cout << "Completed" << std::endl;
             break;
         case DECRYPT:
-            if (input_path.substr(input_path.length() - 4) != ".nva"){
-                ERROR_MSG("invalid vault file.");
-                return 1;
-            }
+            if (input_path.substr(input_path.length() - 4) != ".nva")
+                ERROR_CRASH("invalid vault file")
             PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()));
             password = getpass("Vault password: ");
             std::cout << "Decrypting..." << std::endl;
@@ -106,16 +98,13 @@ int main(int argc, char** argv){
             }
             catch (std::runtime_error e){
                 fs::remove(out_path);
-                ERROR_MSG(e.what());
-                return 1;
+                ERROR_CRASH(e.what())
             }
             std::cout << "Completed" << std::endl;
             break;
         case CHANGE_PW:
-            if (input_path.substr(input_path.length() - 4) != ".nva"){
-                ERROR_MSG("invalid vault file.");
-                return 1;
-            }
+            if (input_path.substr(input_path.length() - 4) != ".nva")
+                ERROR_CRASH("invalid vault file")
             PARSE_OUT_PATH(input_path);
             // decrypt the vault to a temporary directory
             password = getpass("Current password: ");
@@ -124,8 +113,7 @@ int main(int argc, char** argv){
             }
             catch (std::runtime_error e){
                 fs::remove_all("TMP_VAULT");
-                ERROR_MSG(e.what());
-                return 1;
+                ERROR_CRASH(e.what());
             }
             // get the name of the originally encryptd path
             fs::current_path("TMP_VAULT");
@@ -137,26 +125,21 @@ int main(int argc, char** argv){
             password = getpass("New vault password: ");
             confirm = getpass("Confrim new password: ");
             if (password != confirm){
-                ERROR_MSG("New password does not match confirmation");
                 fs::current_path("..");
                 fs::remove_all("TMP_VAULT");
-                return 1;
+                ERROR_CRASH("new password does not match confirmation");
             }
             try{
                 vault.seal(old_path, "../"+out_path, password);
             }
-            catch (std::runtime_error e){
-                ERROR_MSG(e.what());
-                return 1;
-            }
+            catch (std::runtime_error e)
+                ERROR_CRASH(e.what());
             fs::current_path("..");
             fs::remove_all("TMP_VAULT");
             break;
         case EXPORT_KEY:
-            if (input_path.substr(input_path.length() - 4) != ".nva"){
-                ERROR_MSG("invalid vault file.");
-                return 1;
-            }
+            if (input_path.substr(input_path.length() - 4) != ".nva") 
+                ERROR_CRASH("invalid vault file");
             password = getpass("Password: ");
             try{
                 master_key = vault.export_master_key(input_path, password);
@@ -167,17 +150,13 @@ int main(int argc, char** argv){
                 else
                     std::cout << master_key << std::endl;
             }
-            catch (std::runtime_error e){
-                ERROR_MSG(e.what());
-                return 1;
-            }
+            catch (std::runtime_error e) 
+                ERROR_CRASH(e.what());
             break;
         case IMPORT:
             std::cout << input_path << std::endl;
-            if (input_path.substr(input_path.length() - 4) != ".nva"){
-                ERROR_MSG("invalid vault file.");
-                return 1;
-            }
+            if (input_path.substr(input_path.length() - 4) != ".nva")   
+                ERROR_CRASH("invalid vault file");
             PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()));
             key_str = getpass("File key: ");
             try{
@@ -185,28 +164,20 @@ int main(int argc, char** argv){
                     throw std::runtime_error("");
                 store_hex(key_str, key_bytes);
             }
-            catch (...){
-                ERROR_MSG("invalid file key");
-                return 1;
-            }
+            catch (...)
+                ERROR_CRASH("invalid file key");
             in = std::ifstream(input_path);
-            if (!in.good()){
-                ERROR_MSG("invalid input file");
-                return 1;
-            }
-            in.read(salt_str, 32);
-            salt_str[32] = '\0';
-            store_hex(salt_str, key_salt);
+            if (!in.good())
+                ERROR_CRASH("input file could not be found");
+            parse_hex_str(in, file_key.salt, 32);
             try{
                 std::cout << "Decrypting..." << std::endl;
                 file_key.key = key_bytes;
-                file_key.salt = key_salt;
                 vault.unseal(in, out_path, file_key);
                 std::cout << "Completed" << std::endl;
             }
-            catch (std::runtime_error e){
-                ERROR_MSG(e.what());
-            }
+            catch (std::runtime_error e)
+                ERROR_CRASH(e.what());
             break;
         case HELP:
             command = (argc >= 3) ? argv[2] : "";
@@ -216,7 +187,7 @@ int main(int argc, char** argv){
             std::cout << "NewVault version 0.1.3" << std::endl;
             break;
         default:
-            ERROR_MSG("unrecognized command.");
+            std::cerr << "\033[31merror:\033[0m unrecognized command" << std::endl;
             print_help();
     }
     return 0;

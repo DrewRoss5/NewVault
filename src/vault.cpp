@@ -44,6 +44,16 @@ void store_hex(const std::string& hex_str, std::vector<unsigned char>& bytes){
     }
 }
 
+// parses a hex string of a given size and stores the resulting bytes to a buffer
+void parse_hex_str(std::ifstream& vault_f, std::vector<unsigned char>& byte_buf, unsigned int size){
+    byte_buf.clear();
+    char* hex_buf = new char[size + 1];
+    vault_f.read(hex_buf, size);
+    hex_buf[size] = '\0';
+    store_hex(hex_buf, byte_buf);
+    delete[] hex_buf;
+}
+
 // encrypts a the given path and stores it to the target file 
 void Vault::seal(const std::string& target, const std::string& out_file,  const std::string& password){
     // ensure the path exists
@@ -224,16 +234,6 @@ void Vault::parse_chunk(std::ifstream& vault_f, std::vector<unsigned char>& buf)
         hex_str += c;
     buf.clear();
     store_hex(hex_str, buf);
-}
-
-// parses a hex string of a given size and stores the resulting bytes to a buffer
-void Vault::parse_hex_str(std::ifstream& vault_f, std::vector<unsigned char>& byte_buf, unsigned int size){
-    byte_buf.clear();
-    char* hex_buf = new char[size + 1];
-    vault_f.read(hex_buf, size);
-    hex_buf[size] = '\0';
-    store_hex(hex_buf, byte_buf);
-    delete[] hex_buf;
 }
 
 // parses the buffer for a file or directory

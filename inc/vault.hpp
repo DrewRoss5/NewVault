@@ -8,6 +8,7 @@
 
 std::string to_hex(const std::vector<unsigned char>& bytes);
 void store_hex(const std::string& hex_str, std::vector<unsigned char>& bytes);
+void parse_hex_str(std::ifstream& vault_f, std::vector<unsigned char>& byte_buf, unsigned int size);
 
 struct Key{
     std::vector<unsigned char> salt;
@@ -25,7 +26,6 @@ class Vault{
     private:
         void encrypt_file(const std::string& file_path, std::ofstream& out_file);
         void parse_chunk(std::ifstream& vault_f, std::vector<unsigned char>& buf); 
-        void parse_hex_str(std::ifstream& vault_f, std::vector<unsigned char>& byte_buf, unsigned int size);
         void parse_header(std::ifstream& vault_f, Key& key, std::string& file_name);
         std::stack<Key> key_stack;
         std::stack<std::string> path_stack;
