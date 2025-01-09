@@ -6,8 +6,6 @@ While NewVault uses LibSodium for cryptographic primatives, and currently has no
 
 
 ### Roadmap / ToDo
-- Add key exporting/importing functionality
-- Improve Windows compatibility
 - Switch from Hex formatting to Base64
 
 
@@ -33,5 +31,10 @@ There are currently three supported commands:
 #### `newvault change_password <archive_path> [out_path]`
 - Creates a copy of the vault at `archive_path` and saves it with a new password to `out_path`.
 - If `out_path` is not specified, the file's password is changed in place.
+#### `newvault export_key <archive_path> [key_path]`
+- Exports the master key for the the provided archive, and saves it to the key path.
+- If no key path is provided, this will simply write the key to the terminal.
+#### `newvault import <archive_path>`
+- Works like the decrypt command, but accepts a 256-bit hex-encoded key instead of a regular password
 #### `newvault help`
 - Displays the help menu
