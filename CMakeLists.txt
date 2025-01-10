@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(NewVault VERSION 0.1.4)
+project(NewVault VERSION 0.1.5)
 
 # set directory varaiables 
 set(SOURCE_DIR "src/")

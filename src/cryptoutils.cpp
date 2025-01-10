@@ -13,10 +13,10 @@
 #define SALT_SIZE 16
 #define KEY_SIZE 32
 
-// generate a random salt and writes it to the the given buffer
-void gen_salt(std::vector<unsigned char>& salt){
-    salt.resize(SALT_SIZE);
-    randombytes_buf(&salt[0], SALT_SIZE);
+// a wrapper for sodium's randombytes_buf function that works with vectors
+void rand_bytes(std::vector<unsigned char>& buf, unsigned int size){
+    buf.resize(size);
+    randombytes_buf(&buf[0], size);
 }
 
 // generates a key from a string passowrd using a sha-256 hash (this assumes the salt's size has already been validated)

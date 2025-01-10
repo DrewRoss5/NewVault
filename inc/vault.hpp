@@ -1,4 +1,4 @@
-#ifndef VaULT_H
+#ifndef VAULT_H
 #define VAULT_H
 
 #include <fstream>
@@ -19,6 +19,7 @@ class Vault{
     public:
         Vault() {}
         void seal(const std::string& target, const std::string& out_path, const std::string& password);
+        void seal(const std::string& target, std::ofstream& vault_f, const Key& master_key);
         void unseal(const std::string& target, const std::string& out_path, const std::string& password);
         void unseal(std::ifstream& vault_f, const std::string& out_path, const Key& master_key);
         std::string export_master_key(const std::string& file_path, const std::string& password);

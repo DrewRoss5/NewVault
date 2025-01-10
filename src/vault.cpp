@@ -1,11 +1,10 @@
 #include <stack>
 #include <vector>
-#include <fstream>
 #include <stdexcept>
 #include <filesystem>
-#include <sstream>
 #include <iostream>
 #include <sodium/crypto_secretbox.h>
+#include <fstream>
 
 #include "../inc/vault.hpp"
 #include "../inc/cryptoutils.hpp"
@@ -61,19 +60,23 @@ void Vault::seal(const std::string& target, const std::string& out_file,  const 
         throw std::runtime_error("cannot encrypt " + target + ", does it exist?");
     // generate a key from the given password
     Key master_key;
-    gen_salt(master_key.salt);
+    rand_bytes(master_key.salt, SALT_SIZE);
     master_key.key = gen_key(password, master_key.salt);
+    std::ofstream vault_f(out_file, std::ios::binary);
+    this->seal(target, vault_f, master_key);
+}
+
+// encrypts a the given path and stores it to the target file 
+void Vault::seal(const std::string& target, std::ofstream& vault_f,  const Key& master_key){
     this->key_stack.push(master_key);
     // create and encrypt a hash of the master key
     std::vector<unsigned char> key_hash_ciphertext;
     std::vector<unsigned char> key_hash = hash_key(master_key.key, master_key.salt);
     encrypt(key_hash, master_key.key, key_hash_ciphertext);
     // create the encrypted file
-    std::ofstream out(out_file, std::ios::binary);
-    out << to_hex(master_key.salt) << to_hex(key_hash_ciphertext);
-    this->encrypt_file(target, out);
-    out.close();
-
+    vault_f << to_hex(master_key.salt) << to_hex(key_hash_ciphertext);
+    this->encrypt_file(target, vault_f);
+    vault_f.close();
 }
 
 // decrypts a vault archive file and stores the contents to the output directory
@@ -183,7 +186,7 @@ void Vault::encrypt_file(const std::string& file_path, std::ofstream& out_f){
     std::string file_name = fs::path(file_path).filename();
     // genereate a key for the file
     Key prev_key {this->key_stack.top()}, file_key;
-    gen_salt(file_key.salt);
+    rand_bytes(file_key.salt, SALT_SIZE);
     file_key.key = hash_key(prev_key.key, file_key.salt);
     if (fs::is_directory(file_path)){
         this->key_stack.push(file_key);

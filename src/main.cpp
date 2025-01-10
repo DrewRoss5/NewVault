@@ -5,37 +5,42 @@
 #include <map>
 
 #include "../inc/vault.hpp"
+#include "../inc/cryptoutils.hpp"
 
-#define KEY_SIZE 64
+#define SALT_SIZE 16
+#define KEY_SIZE 32
+#define KEY_SIZE_HEX 64
 
 #define PARSE_OUT_PATH(DEFAULT) out_path = (argc >= 4) ? argv[3] : DEFAULT
 #define ERROR_CRASH(MSG) \
-    {\
-        std::cerr << "\033[31merror:\033[0m " << MSG << std::endl;\
-        return 1;\
-    }
+{\
+    std::cerr << "\033[31merror:\033[0m " << MSG << std::endl;\
+    return 1;\
+}
 
 
 namespace fs = std::filesystem;
 
-enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, EXPORT_KEY, IMPORT, HELP, VERSION};
-std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"export_key", EXPORT_KEY}, {"import", IMPORT}, {"help", HELP}, {"version", VERSION}};
+enum COMMAND_CODES{ENCRYPT, DECRYPT, CHANGE_PW, GENERATE_KEY, EXPORT_KEY, KEY_ENCRYPT, IMPORT, HELP, VERSION};
+std::map<std::string, int> command_map = {{"encrypt", ENCRYPT}, {"decrypt", DECRYPT}, {"change_password", CHANGE_PW}, {"gen_key", GENERATE_KEY}, {"export_key", EXPORT_KEY}, {"key_encrypt", KEY_ENCRYPT}, {"import", IMPORT}, {"help", HELP}, {"version", VERSION}};
 
 void print_help(std::string command_name = ""){
-    std::string commands[] = {"Command:", "  encrypt", "  decrypt", "  change_password", "  export_key", "  import", "  help", "  version"};
-    std::string arguments[] = {"Arguments:", "  <input path> [archive path]", "  <archive path> [output path]", "  <archive path> [new archive path]", "  <archive path> [key path]", "  <archive path> [output path]", "  [command]", ""};
+    std::string commands[] = {"Command:", "  encrypt", "  decrypt", "  change_password",  "  gen_key", "  export_key", "  key_encrypt", "  import", "  help", "  version"};
+    std::string arguments[] = {"Arguments:", "  <input path> [archive path]", "  <archive path> [output path]", "  <archive path> [new archive path]", "  [key_path]", "  <archive path> [key path]",  "<input path> [archive path]", "  <archive path> [output path]", "  [command]", ""};
     std::string descriptions[] = { "",
         "Encrypts the contents in the input path, and creates an encrypted vault archive at the archive path, if no archive path is specified, an archive will be made in the current working directory",
         "Decrypts the contents of the vault archive and saves them to the output path, if no output path is specified, the decrypted contents will be saved to the current working directory.",
         "Creates a copy of the vault at archive_path and saves it with a new password to the new archive path, if the new path is not specified, this will change the password in place",
+        "Generates a randomized file key, and saves it to the key path. If no key path is provided, this will simply write the key to the terminal ",
         "Exports the master key for the the provided archive, and saves it to the key path. If no key path is provided, this will simply write the key to the terminal",
+        "Works like the encrypt command, but accepts a 256-bit hex-encoded key instead of a regular password",
         "Works like the decrypt command, but accepts a 256-bit hex-encoded key instead of a regular password",
         "Displays this menu",
         "Displays the current version of newvault"
     };
     if (command_name == ""){
         std::cout << "NewVault Commands:" << std::endl;
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 10; i++)
             std::cout << "\t" << std::left << std::setw(24) << commands[i] << arguments[i] << std::endl;
     }
     else{
@@ -60,7 +65,7 @@ int main(int argc, char** argv){
     int command_id = command_map.count(command) ? command_map[command] : -1;
     // parse the input path
     std::string input_path, out_path, password, confirm, old_path, master_key, key_str;
-    if ((command_id != -1 && command_id != HELP && command_id != VERSION)){
+    if (command_id != -1 && command_id != HELP && command_id != VERSION && command_id != GENERATE_KEY ){
         if (argc < 3)
             ERROR_CRASH("no input path provided")
         input_path = argv[2];
@@ -138,6 +143,17 @@ int main(int argc, char** argv){
             fs::current_path("..");
             fs::remove_all("TMP_VAULT");
             break;
+        case GENERATE_KEY:
+            // generates a random key
+            rand_bytes(key_bytes, KEY_SIZE);
+            master_key = to_hex(key_bytes);
+            if (argc >= 3){
+                std::ofstream(argv[2]) << master_key;
+                std::cout << "Key exported" << std::endl;
+            }
+            else
+                std::cout << master_key << std::endl;
+            break;
         case EXPORT_KEY:
             if (input_path.substr(input_path.length() - 4) != ".nva") 
                 ERROR_CRASH("invalid vault file");
@@ -154,6 +170,23 @@ int main(int argc, char** argv){
             catch (std::runtime_error e) 
                 ERROR_CRASH(e.what());
             break;
+        case KEY_ENCRYPT:
+            PARSE_OUT_PATH(static_cast<std::string>(fs::current_path())  + '/' + input_path + ".nva");
+            out = std::ofstream(out_path);
+            key_str = getpass("File key: ");
+            try{
+                if(key_str.size() != KEY_SIZE_HEX)
+                    throw std::runtime_error("");
+                store_hex(key_str, key_bytes);
+            }
+            catch (...)
+                ERROR_CRASH("invalid file key");
+            // generate a new salt for the key
+            file_key.key = key_bytes;
+            rand_bytes(file_key.salt, SALT_SIZE);
+            // seal the vault
+            vault.seal(input_path, out, file_key); 
+            break;
         case IMPORT:
             std::cout << input_path << std::endl;
             if (input_path.substr(input_path.length() - 4) != ".nva")   
@@ -161,7 +194,7 @@ int main(int argc, char** argv){
             PARSE_OUT_PATH(static_cast<std::string>(fs::current_path()));
             key_str = getpass("File key: ");
             try{
-                if(key_str.size() != KEY_SIZE)
+                if(key_str.size() != KEY_SIZE_HEX)
                     throw std::runtime_error("");
                 store_hex(key_str, key_bytes);
             }
@@ -185,7 +218,7 @@ int main(int argc, char** argv){
             print_help(command);
             break;
         case VERSION:
-            std::cout << "NewVault version 0.1.4" << std::endl;
+            std::cout << "NewVault version 0.1.5" << std::endl;
             break;
         default:
             std::cerr << "\033[31merror:\033[0m unrecognized command" << std::endl;
